@@ -65,5 +65,63 @@ which \texttt{R} cannot differentiate from 0.
   \end{enumerate}
 \end{enumerate}
 
+<<size="scriptsize", echo = FALSE, message=FALSE, warning=FALSE>>=
+
+library(tidyverse)
+library(e1071)
+library(nleqslv)
+
+################################################################################
+# Precipitation in Madison County
+################################################################################
+dat.precip <- read_csv(file = "agacis.csv")
+
+#####################################
+# Clean Data
+#####################################
+dat.precip.long <- dat.precip |>    
+  dplyr::select(-Annual) |>                   # Remove annual column 
+  pivot_longer(cols = c(Jan, Feb, Mar, Apr,   # pivot the column data into one col
+                        May, Jun, Jul, Aug, 
+                        Sep, Oct, Nov, Dec), 
+               values_to = "Precipitation",   # store the values in Precipitation
+               names_to = "Month") |>         # store the months in Month
+  mutate(Precipitation = case_when(Precipitation == "M" ~ NA_character_,
+                                   TRUE                 ~ Precipitation))|>
+  mutate(Precipitation = as.numeric(Precipitation))
+
+x = dat.precip.long$Precipitation
+
+# 1(a) MLE for Gamma Distribution
+
+gamma = function(par, data, neg = FALSE){
+  alpha = exp(par[1])
+  beta = exp(par[2])
+  loglik = sum(dgamma(data, shape = alpha, scale = beta, log = TRUE))
+  return(ifelse(neg, -loglik, loglik))
+}
+gamma.mle = optim(par = c(0,0), fn = gamma, data = x, neg = TRUE)
+alpha.hat = exp(gamma.mle$par[1])
+beta.hat = exp(gamme.mle$par[2])
+loglik.gamma = -gamma.mle$value
+
+# 1(b) MLE for Log-Normal Distribution
+
+lognormal = function(par, data, neg = FALSE){
+  mu = par[1]
+  sigma = exp(par[2])
+  loglik = sum(dlnorm(data, meanlog = mu, sdlog = sigma, log = TRUE))
+  return(ifelse(neg, -loglik, loglik))
+}
+lognorm.mle - optim(par = c(0,0), fn = lognormal, data = x, neg = TRUE)
+
+
+
+
+
+
+
+@
+
 \bibliography{bibliography}
 \end{document}

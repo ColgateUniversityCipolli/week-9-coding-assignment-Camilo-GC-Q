@@ -65,7 +65,7 @@ which \texttt{R} cannot differentiate from 0.
   \end{enumerate}
 \end{enumerate}
 
-<<size="scriptsize", echo = FALSE, message=FALSE, warning=FALSE>>=
+<<size="scriptsize", echo = TRUE, message=FALSE, warning=FALSE>>=
 
 library(tidyverse)
 library(e1071)
@@ -92,36 +92,58 @@ dat.precip.long <- dat.precip |>
 
 x = dat.precip.long$Precipitation
 
-# 1(a) MLE for Gamma Distribution
+# 1.(a) MLE for Gamma Distribution
 
 gamma = function(par, data, neg = FALSE){
   alpha = exp(par[1])
   beta = exp(par[2])
-  loglik = sum(dgamma(data, shape = alpha, scale = beta, log = TRUE))
+  loglik = sum(dgamma(data, shape = alpha, scale = beta, log = TRUE), na.rm = TRUE)
   return(ifelse(neg, -loglik, loglik))
 }
-gamma.mle = optim(par = c(0,0), fn = gamma, data = x, neg = TRUE)
+gamma.mle = optim(par = c(1,1), fn = gamma, data = x, neg = TRUE)
 alpha.hat = exp(gamma.mle$par[1])
-beta.hat = exp(gamme.mle$par[2])
+beta.hat = exp(gamma.mle$par[2])
 loglik.gamma = -gamma.mle$value
 
-# 1(b) MLE for Log-Normal Distribution
+# 1.(b) MLE for Log-Normal Distribution
 
 lognormal = function(par, data, neg = FALSE){
   mu = par[1]
   sigma = exp(par[2])
-  loglik = sum(dlnorm(data, meanlog = mu, sdlog = sigma, log = TRUE))
+  loglik = sum(dlnorm(data, meanlog = mu, sdlog = sigma, log = TRUE), na.rm = TRUE)
   return(ifelse(neg, -loglik, loglik))
 }
-lognorm.mle - optim(par = c(0,0), fn = lognormal, data = x, neg = TRUE)
+lognorm.mle = optim(par = c(1,1), fn = lognormal, data = x, neg = TRUE)
+mu.hat = lognorm.mle$par[1]
+sigma.hat = exp(lognorm.mle$par[2])
+loglik.lognorm = -lognorm.mle$value
 
+# 1.(c)
 
+loglik.weibull = -2166.496
+(Qwg = exp(loglik.weibull - loglik.gamma))
+# The likelihood ratio is approximately 2.16e-07, which is much less than 1. 
+# This means the Gamma distribution provides a better fit than the Weibull 
+# distribution.
 
+# 1.(d)
 
+(Qwln = exp(loglik.weibull - loglik.lognorm))
+# The liklihood ratio is approximately 2.37e+16, which is much larger than
+# 1 so the Weibull distributions fits the data better than the Log-Normal 
+# distribution.
 
+# 1.(e)
+
+(Qgl = exp(loglik.gamma - loglik.lognorm))
+# The likelihood ratio is approximately 1.10e+23 which is much larger than
+# 1 indicating that the Gamma distribution provides a much better fit than 
+# the Log-Normal distribution.
 
 
 @
+
+
 
 \bibliography{bibliography}
 \end{document}

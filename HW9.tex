@@ -113,5 +113,101 @@ which \texttt{R} cannot differentiate from 0.
   \end{enumerate}
 \end{enumerate}
 
+\begin{knitrout}\scriptsize
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlkwd{library}\hldef{(tidyverse)}
+\hlkwd{library}\hldef{(e1071)}
+\hlkwd{library}\hldef{(nleqslv)}
+
+\hlcom{################################################################################}
+\hlcom{# Precipitation in Madison County}
+\hlcom{################################################################################}
+\hldef{dat.precip} \hlkwb{<-} \hlkwd{read_csv}\hldef{(}\hlkwc{file} \hldef{=} \hlsng{"agacis.csv"}\hldef{)}
+
+\hlcom{#####################################}
+\hlcom{# Clean Data}
+\hlcom{#####################################}
+\hldef{dat.precip.long} \hlkwb{<-} \hldef{dat.precip |>}
+  \hldef{dplyr}\hlopt{::}\hlkwd{select}\hldef{(}\hlopt{-}\hldef{Annual) |>}                   \hlcom{# Remove annual column }
+  \hlkwd{pivot_longer}\hldef{(}\hlkwc{cols} \hldef{=} \hlkwd{c}\hldef{(Jan, Feb, Mar, Apr,}   \hlcom{# pivot the column data into one col}
+                        \hldef{May, Jun, Jul, Aug,}
+                        \hldef{Sep, Oct, Nov, Dec),}
+               \hlkwc{values_to} \hldef{=} \hlsng{"Precipitation"}\hldef{,}   \hlcom{# store the values in Precipitation}
+               \hlkwc{names_to} \hldef{=} \hlsng{"Month"}\hldef{) |>}         \hlcom{# store the months in Month}
+  \hlkwd{mutate}\hldef{(}\hlkwc{Precipitation} \hldef{=} \hlkwd{case_when}\hldef{(Precipitation} \hlopt{==} \hlsng{"M"} \hlopt{~} \hlnum{NA_character_}\hldef{,}
+                                   \hlnum{TRUE}                 \hlopt{~} \hldef{Precipitation))|>}
+  \hlkwd{mutate}\hldef{(}\hlkwc{Precipitation} \hldef{=} \hlkwd{as.numeric}\hldef{(Precipitation))}
+
+\hldef{x} \hlkwb{=} \hldef{dat.precip.long}\hlopt{$}\hldef{Precipitation}
+
+\hlcom{# 1.(a) MLE for Gamma Distribution}
+
+\hldef{gamma} \hlkwb{=} \hlkwa{function}\hldef{(}\hlkwc{par}\hldef{,} \hlkwc{data}\hldef{,} \hlkwc{neg} \hldef{=} \hlnum{FALSE}\hldef{)\{}
+  \hldef{alpha} \hlkwb{=} \hlkwd{exp}\hldef{(par[}\hlnum{1}\hldef{])}
+  \hldef{beta} \hlkwb{=} \hlkwd{exp}\hldef{(par[}\hlnum{2}\hldef{])}
+  \hldef{loglik} \hlkwb{=} \hlkwd{sum}\hldef{(}\hlkwd{dgamma}\hldef{(data,} \hlkwc{shape} \hldef{= alpha,} \hlkwc{scale} \hldef{= beta,} \hlkwc{log} \hldef{=} \hlnum{TRUE}\hldef{),} \hlkwc{na.rm} \hldef{=} \hlnum{TRUE}\hldef{)}
+  \hlkwd{return}\hldef{(}\hlkwd{ifelse}\hldef{(neg,} \hlopt{-}\hldef{loglik, loglik))}
+\hldef{\}}
+\hldef{gamma.mle} \hlkwb{=} \hlkwd{optim}\hldef{(}\hlkwc{par} \hldef{=} \hlkwd{c}\hldef{(}\hlnum{1}\hldef{,}\hlnum{1}\hldef{),} \hlkwc{fn} \hldef{= gamma,} \hlkwc{data} \hldef{= x,} \hlkwc{neg} \hldef{=} \hlnum{TRUE}\hldef{)}
+\hldef{alpha.hat} \hlkwb{=} \hlkwd{exp}\hldef{(gamma.mle}\hlopt{$}\hldef{par[}\hlnum{1}\hldef{])}
+\hldef{beta.hat} \hlkwb{=} \hlkwd{exp}\hldef{(gamma.mle}\hlopt{$}\hldef{par[}\hlnum{2}\hldef{])}
+\hldef{loglik.gamma} \hlkwb{=} \hlopt{-}\hldef{gamma.mle}\hlopt{$}\hldef{value}
+
+\hlcom{# 1.(b) MLE for Log-Normal Distribution}
+
+\hldef{lognormal} \hlkwb{=} \hlkwa{function}\hldef{(}\hlkwc{par}\hldef{,} \hlkwc{data}\hldef{,} \hlkwc{neg} \hldef{=} \hlnum{FALSE}\hldef{)\{}
+  \hldef{mu} \hlkwb{=} \hldef{par[}\hlnum{1}\hldef{]}
+  \hldef{sigma} \hlkwb{=} \hlkwd{exp}\hldef{(par[}\hlnum{2}\hldef{])}
+  \hldef{loglik} \hlkwb{=} \hlkwd{sum}\hldef{(}\hlkwd{dlnorm}\hldef{(data,} \hlkwc{meanlog} \hldef{= mu,} \hlkwc{sdlog} \hldef{= sigma,} \hlkwc{log} \hldef{=} \hlnum{TRUE}\hldef{),} \hlkwc{na.rm} \hldef{=} \hlnum{TRUE}\hldef{)}
+  \hlkwd{return}\hldef{(}\hlkwd{ifelse}\hldef{(neg,} \hlopt{-}\hldef{loglik, loglik))}
+\hldef{\}}
+\hldef{lognorm.mle} \hlkwb{=} \hlkwd{optim}\hldef{(}\hlkwc{par} \hldef{=} \hlkwd{c}\hldef{(}\hlnum{1}\hldef{,}\hlnum{1}\hldef{),} \hlkwc{fn} \hldef{= lognormal,} \hlkwc{data} \hldef{= x,} \hlkwc{neg} \hldef{=} \hlnum{TRUE}\hldef{)}
+\hldef{mu.hat} \hlkwb{=} \hldef{lognorm.mle}\hlopt{$}\hldef{par[}\hlnum{1}\hldef{]}
+\hldef{sigma.hat} \hlkwb{=} \hlkwd{exp}\hldef{(lognorm.mle}\hlopt{$}\hldef{par[}\hlnum{2}\hldef{])}
+\hldef{loglik.lognorm} \hlkwb{=} \hlopt{-}\hldef{lognorm.mle}\hlopt{$}\hldef{value}
+
+\hlcom{# 1.(c)}
+
+\hldef{loglik.weibull} \hlkwb{=} \hlopt{-}\hlnum{2166.496}
+\hldef{(Qwg} \hlkwb{=} \hlkwd{exp}\hldef{(loglik.weibull} \hlopt{-} \hldef{loglik.gamma))}
+\end{alltt}
+\begin{verbatim}
+## [1] 2.161379e-07
+\end{verbatim}
+\begin{alltt}
+\hlcom{# The likelihood ratio is approximately 2.16e-07, which is much less than 1. }
+\hlcom{# This means the Gamma distribution provides a better fit than the Weibull }
+\hlcom{# distribution.}
+
+\hlcom{# 1.(d)}
+
+\hldef{(Qwln} \hlkwb{=} \hlkwd{exp}\hldef{(loglik.weibull} \hlopt{-} \hldef{loglik.lognorm))}
+\end{alltt}
+\begin{verbatim}
+## [1] 2.370639e+16
+\end{verbatim}
+\begin{alltt}
+\hlcom{# The liklihood ratio is approximately 2.37e+16, which is much larger than}
+\hlcom{# 1 so the Weibull distributions fits the data better than the Log-Normal }
+\hlcom{# distribution.}
+
+\hlcom{# 1.(e)}
+
+\hldef{(Qgl} \hlkwb{=} \hlkwd{exp}\hldef{(loglik.gamma} \hlopt{-} \hldef{loglik.lognorm))}
+\end{alltt}
+\begin{verbatim}
+## [1] 1.096818e+23
+\end{verbatim}
+\begin{alltt}
+\hlcom{# The likelihood ratio is approximately 1.10e+23 which is much larger than}
+\hlcom{# 1 indicating that the Gamma distribution provides a much better fit than }
+\hlcom{# the Log-Normal distribution.}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+
 \bibliography{bibliography}
 \end{document}
